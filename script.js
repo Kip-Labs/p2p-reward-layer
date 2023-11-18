@@ -1,10 +1,11 @@
 
 var connected_peer_ids = [];
 var peer_conn_map = new Map();
+var peer_id = null;
 
 
 var init_new_peer = function () {
-  const peer_id = Math.floor(Math.random() * 2 ** 18)
+  peer_id = Math.floor(Math.random() * 2 ** 18)
     .toString(36)
     .padStart(4, 0);
 

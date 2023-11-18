@@ -64,6 +64,8 @@ const app = express();
 const server = http.createServer(app);
 const { ExpressPeerServer } = require("peer");
 const port = process.env.PORT || "8000";
+const { Server } = require("socket.io");
+const io = new Server(server);
 
 const peerServer = ExpressPeerServer(server, {
     proxied: true,
@@ -80,17 +82,15 @@ app.get("/", (request, response) => {
     response.sendFile(`${__dirname}/index.html`);
 });
 
-server.listen(port);
-console.log(`Listening on: ${port}`);
+server.listen(port, () => {
+    console.log('listening on *:3000');
+});
 
-const { Server } = require("socket.io");
-const io = new Server(server);
+var all_players = new Map();
 
 const {
     v4: uuidv4,
 } = require('uuid');
-var all_players = new Map();
-
 io.on('connection', (socket) => {
     let player_id = uuidv4();
     socket.player_id = player_id;
@@ -104,5 +104,9 @@ io.on('connection', (socket) => {
         console.log('on peer_id: ' + peer_id);
 
         all_players.set(player_id, peer_id);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('User disconnected on WS: ' + player_id);
     });
 });
