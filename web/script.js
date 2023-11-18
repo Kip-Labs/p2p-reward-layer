@@ -1,12 +1,12 @@
 
-class Peer {
+class CachePeer {
     constructor(mem_capacity) {
         this.totalMemory = mem_capacity;
         this.usedMemory = 0;
         this.files = [];
 
         this.connected_peer_ids = [];
-        this.peer_conn_map = new Map();
+        this.peer_to_conn_map = new Map();
         this.InitNewPeer();
 
         this.InitWebsocket();
@@ -20,7 +20,7 @@ class Peer {
             .padStart(4, 0);
 
         this.connected_peer_ids = [];
-        this.peer_conn_map = new Map();
+        this.peer_to_conn_map = new Map();
 
         this.peer = new Peer(
             `${peer_id}`,
@@ -39,11 +39,11 @@ class Peer {
             console.log("Incoming connection from peer", conn.peer);
             conn.on('data', (p_data) => {
                 console.log("Received data from peer", conn.peer, p_data);
-                console.log("File url: " + p_data.file_url + " File: " + p_data.file);
+                // console.log("File url: " + p_data.file_url + " File: " + p_data.file);
             });
             conn.on('open', () => {
                 console.log("Connection to peer", conn.peer, "opened.");
-                this.peer_conn_map.set(conn.peer, conn);
+                self.peer_to_conn_map.set(conn.peer, conn);
             });
             conn.on('error', (err) => {
                 console.error("Error in peer data connection", err);
@@ -86,7 +86,9 @@ class Peer {
 
     }
 
-    CallPeerWithId (peer_id) {
+    CallPeerWithId(peer_id) {
+        let self = this;
+
         if (peer_id == this.peer.id) {
             console.warn("Cannot call self.");
             return;
@@ -101,14 +103,14 @@ class Peer {
 
         conn.on('open', function () {
             console.log("Connection to peer", peer_id, "opened.");
-            this.peer_conn_map.set(peer_id, conn);
-            this.connected_peer_ids.push(peer_id);
+            self.peer_to_conn_map.set(peer_id, conn);
+            self.connected_peer_ids.push(peer_id);
 
-            this.SendDataToAllPeers({ "peer_id": peer.id });
+            // self.SendDataToAllPeers({ "peer_id": self.peer.id });
         });
         conn.on('data', function (p_data) {
             console.log("Received data from peer", peer_id, p_data);
-            console.log("File url: " + p_data.file_url + " File: " + p_data.file);
+            // console.log("File url: " + p_data.file_url + " File: " + p_data.file);
         });
         conn.on('error', (err) => {
             console.error("Error in peer data connection", err);
@@ -117,19 +119,21 @@ class Peer {
     }
 
     SendDataToAllPeers (data) {
-        for (let [peer_id, conn] of this.peer_conn_map) {
+        for (let [peer_id, conn] of this.peer_to_conn_map) {
             conn.send(data);
         }
     }
 
     SendDataToPeer(data, peer_id) {
-        let conn = this.peer_conn_map.get(peer_id);
+        let conn = this.peer_to_conn_map.get(peer_id);
         if (conn) {
             conn.send(data);
         }
     }
 
     InitWebsocket() {
+        let self = this;
+
         this.socket = io();
 
         this.socket.emit('peer_id', this.peer.id);
@@ -140,8 +144,8 @@ class Peer {
 
             for (let peer_id of this.connected_peer_ids) {
                 if (new_peers_list.includes(peer_id) == false) {
-                    this.connected_peer_ids.splice(this.connected_peer_ids.indexOf(peer_id), 1);
-                    this.peer_conn_map.delete(peer_id);
+                    self.connected_peer_ids.splice(self.connected_peer_ids.indexOf(peer_id), 1);
+                    self.peer_to_conn_map.delete(peer_id);
                 }
             }
 
@@ -152,7 +156,8 @@ class Peer {
 
         this.socket.on('send_file', (msg) => {
             let file_url = msg.file_url; // File to send
-            let peer_id = msg.peer_ids; // Peer to send the file to
+            let peer_id = msg.peer_id; // Peer to send the file to
+            console.log("Sending file... " + file_url + " to peer " + peer_id);
 
             this.GetFile(file_url).then(fileBufferArray => {
                 let data = {
@@ -163,9 +168,11 @@ class Peer {
                 this.socket.emit('add_file', file_url);
             });
         });
+
     }
 
     RequestFile(file_url) {
+        console.log("Requesting file... " + file_url);
         this.socket.emit('request_file', file_url);
     }
 
@@ -215,6 +222,6 @@ class Peer {
 
 };
 
-var peer = new Peer(1000000000);
+var cachePeer = new CachePeer(1000000000);
 
-peer.RequestFile('some_url')
+// cachePeer.RequestFile('https://upload.wikimedia.org/wikipedia/commons/0/09/Apollo_14_Shepard.jpg')

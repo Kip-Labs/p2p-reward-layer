@@ -11,7 +11,7 @@
 // })
 
 require('dotenv').config();
-var ethers = require('ethers');  
+var ethers = require('ethers');
 var provider = new ethers.JsonRpcProvider(process.env.NODE_URL);    //url);
 provider.getBlockNumber().then((result) => {
     console.log("Current block number: " + result);
@@ -57,13 +57,12 @@ app.get("/", (request, response) => {
 });
 
 server.listen(port, () => {
-    console.log('listening on *:3000');
+    console.log('listening on *:' + port);
 });
 
-var all_players = new Map();
-
-var file_map = new Map();
-var socket_map = new Map();
+var player_to_peer_map = new Map();
+var files_to_peers_map = new Map();
+var peers_to_sockets_map = new Map();
 
 const {
     v4: uuidv4,
@@ -73,22 +72,26 @@ io.on('connection', (socket) => {
     socket.player_id = player_id;
     console.log('A user connected via WS: ' + player_id);
 
-    socket.emit('peer_id_list', Array.from(all_players.values()));
+    socket.emit('peer_id_list', Array.from(player_to_peer_map.values()));
 
     let peer_id = null;
+
     socket.on('peer_id', (msg) => {
         peer_id = msg;
         console.log('on peer_id: ' + peer_id);
 
-        all_players.set(player_id, peer_id);
-        socket_map.set(peer_id, socket.id);
-        socket.emit('peer_id_list', Array.from(all_players.values()));
+        player_to_peer_map.set(player_id, peer_id);
+        peers_to_sockets_map.set(peer_id, socket.id);
+        console.log('Socket Id: ' + socket.id + ' Peer Id: ' + peer_id);
+
+        socket.emit('peer_id_list', Array.from(player_to_peer_map.values()));
     });
 
     socket.on('add_file', (msg) => {
         let file_url = msg;
+        console.log('on add_file: ' + msg);
 
-        let users = file_map.get(file_url);
+        let users = files_to_peers_map.get(file_url);
         if (users == null) {
             users = [];
         }
@@ -99,36 +102,39 @@ io.on('connection', (socket) => {
 
         users.push(peer_id);
 
-        file_map.set(file_url, users);
+        files_to_peers_map.set(file_url, users);
         console.log("Added file " + file_url + " for peer " + peer_id);
     });
-    
+
     socket.on('request_file', (msg) => {
         let file_url = msg;
+
         // Look among peers if they have the files
-        let users = file_map.get(file_url);
+        let users = files_to_peers_map.get(file_url);
         // If so then that peer should send it to the person requesting it
-        if (users == null) {
-            return;
+        if (users != null) {
+            console.log("Found file " + truncate(file_url, 20) + " for peer " + peer_id);
+            /// look for file if available, start at the index for the last request
+            for (let i = 0; i < users.length; i++) {
+                this.index = (this.index + 1) % users.length;
+
+                let socket_id = peers_to_sockets_map.get(users[i]);
+                console.log("Sending to socket ID " + socket_id + " for peer " + peer_id + " for file " + file_url);
+                io.to(socket_id).emit('send_file', { 'file_url': file_url, 'peer_id': peer_id });
+                return;
+            }
         }
 
-        /// look for file if available, start at the index for the last request
-        for (let i = 0; i < users.length; i++) {
-            this.index = (this.index + 1) % users.length;
-            let t_index = this.index;
-
-            let socket_id = socket_map.get(users[t_index]);
-            io.to(socket_id).emit('send_file', { 'file_url': file_url, 'peer_id': peer_id });
-            return;
-        }
-
-        let all_peers = all_players.values();
+        let all_peers = player_to_peer_map.values();
         // if (all_peers.length <= 3) {
         if (true) {
+            console.log("File " + truncate(file_url, 20) + " not found for peer " + peer_id + ", requesting from all peers");
             /// Cache the file on all peers
+            console.log("Sending to all peers count " + all_peers.length)
             for (let i = 0; i < all_peers.length; i++) {
                 let _peer_id = all_peers[i]
-                let socket_id = socket_map.get(_peer_id);
+                let socket_id = peers_to_sockets_map.get(_peer_id);
+                console.log("Sending to socket ID " + socket_id + " for peer " + peer_id + " for file " + file_url);
                 io.to(socket_id).emit('send_file', { 'file_url': file_url, 'peer_id': peer_id });
             }
         }
@@ -181,30 +187,11 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('User disconnected on WS: ' + player_id);
-        all_players.delete(player_id);
-        socket.emit('peer_id_list', Array.from(all_players.values()));
+        player_to_peer_map.delete(player_id);
+        socket.emit('peer_id_list', Array.from(player_to_peer_map.values()));
     });
 });
 
-
-class PeerNetwork {
-    constructor() {
-        this.index = 0;
-        this.peers = [];
-        this.peerMap = new Map();
-    }
-
-    NewPeer(peer_id, mem_capacity) {
-        let new_peer = new Peer(mem_capacity);
-        this.peers.push(new_peer);
-        this.peerMap.set(peer_id, new_peer);
-    }
-
-    async GetFile(file_url) {
-        return new Promise((resolve, reject) => {
-            
-        })
-    }
-}
-
-var p2p = new PeerNetwork();
+function truncate(str, n) {
+    return (str.length > n) ? str.slice(0, n - 1) + '...' : str;
+};
