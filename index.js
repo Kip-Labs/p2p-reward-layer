@@ -68,7 +68,7 @@ const port = process.env.PORT || "8000";
 const peerServer = ExpressPeerServer(server, {
     proxied: true,
     debug: true,
-    path: "/myapp",
+    path: "/peerapp",
     ssl: {},
 });
 
@@ -94,13 +94,15 @@ var all_players = new Map();
 io.on('connection', (socket) => {
     let player_id = uuidv4();
     socket.player_id = player_id;
-    console.log('a user connected: ' + player_id);
+    console.log('A user connected via WS: ' + player_id);
+
+    socket.emit('peer_id_list', Array.from(all_players.values()));
 
     let peer_id = null;
     socket.on('peer_id', (msg) => {
         peer_id = msg;
-        console.log('peer_id: ' + peer_id);
+        console.log('on peer_id: ' + peer_id);
 
-        all_players.set(player_id, {peer_id: peer_id, socket: socket});
+        all_players.set(player_id, peer_id);
     });
 });
