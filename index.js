@@ -82,7 +82,7 @@ io.on('connection', (socket) => {
 
         player_to_peer_map.set(player_id, peer_id);
         peers_to_sockets_map.set(peer_id, socket.id);
-        console.log('Socket Id: ' + socket.id + ' Peer Id: ' + peer_id);
+        // console.log('Socket Id: ' + socket.id + ' Peer Id: ' + peer_id);
 
         socket.emit('peer_id_list', Array.from(player_to_peer_map.values()));
     });
@@ -119,13 +119,13 @@ io.on('connection', (socket) => {
                 this.index = (this.index + 1) % users.length;
 
                 let socket_id = peers_to_sockets_map.get(users[i]);
-                console.log("Sending to socket ID " + socket_id + " for peer " + peer_id + " for file " + file_url);
+                // console.log("Sending to socket ID " + socket_id + " for peer " + peer_id + " for file " + file_url);
                 io.to(socket_id).emit('send_file', { 'file_url': file_url, 'peer_id': peer_id });
                 return;
             }
         }
 
-        let all_peers = player_to_peer_map.values();
+        let all_peers = Array.from(player_to_peer_map.values())
         // if (all_peers.length <= 3) {
         if (true) {
             console.log("File " + truncate(file_url, 20) + " not found for peer " + peer_id + ", requesting from all peers");
@@ -133,8 +133,9 @@ io.on('connection', (socket) => {
             console.log("Sending to all peers count " + all_peers.length)
             for (let i = 0; i < all_peers.length; i++) {
                 let _peer_id = all_peers[i]
+                if(_peer_id == peer_id) continue;
                 let socket_id = peers_to_sockets_map.get(_peer_id);
-                console.log("Sending to socket ID " + socket_id + " for peer " + peer_id + " for file " + file_url);
+                // console.log("Sending to socket ID " + socket_id + " for peer " + peer_id + " for file " + file_url);
                 io.to(socket_id).emit('send_file', { 'file_url': file_url, 'peer_id': peer_id });
             }
         }
