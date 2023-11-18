@@ -78,10 +78,12 @@ io.on('connection', (socket) => {
         console.log('on peer_id: ' + peer_id);
 
         all_players.set(player_id, peer_id);
+        socket.emit('peer_id_list', Array.from(all_players.values()));
     });
 
     socket.on('disconnect', () => {
         console.log('User disconnected on WS: ' + player_id);
         all_players.delete(player_id);
+        socket.emit('peer_id_list', Array.from(all_players.values()));
     });
 });

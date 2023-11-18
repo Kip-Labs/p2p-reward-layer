@@ -91,11 +91,17 @@ class Peer {
             return;
         }
 
+        if (this.connected_peer_ids.includes(peer_id)) {
+            console.warn("Already connected to peer", peer_id);
+            return;
+        }
+
         let conn = this.peer.connect(peer_id);
 
         conn.on('open', function () {
             console.log("Connection to peer", peer_id, "opened.");
             this.peer_conn_map.set(peer_id, conn);
+            this.connected_peer_ids.push(peer_id);
 
             this.SendDataToAllPeers({ "peer_id": peer.id });
         });
@@ -128,8 +134,16 @@ class Peer {
 
         this.socket.on('peer_id_list', (msg) => {
             console.log('peer_ids: ' + msg);
-            this.connected_peer_ids = msg;
+            let new_peers_list = msg;
+            
             for (let peer_id of this.connected_peer_ids) {
+                if (new_peers_list.includes(peer_id) == false) {
+                    this.connected_peer_ids.splice(this.connected_peer_ids.indexOf(peer_id), 1);
+                    this.peer_conn_map.delete(peer_id);
+                }
+            }
+
+            for (let peer_id of new_peers_list) {
                 this.CallPeerWithId(peer_id);
             }
         });
