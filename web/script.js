@@ -39,6 +39,7 @@ class Peer {
             console.log("Incoming connection from peer", conn.peer);
             conn.on('data', (p_data) => {
                 console.log("Received data from peer", conn.peer, p_data);
+                console.log("File url: " + p_data.file_url + " File: " + p_data.file);
             });
             conn.on('open', () => {
                 console.log("Connection to peer", conn.peer, "opened.");
@@ -107,6 +108,7 @@ class Peer {
         });
         conn.on('data', function (p_data) {
             console.log("Received data from peer", peer_id, p_data);
+            console.log("File url: " + p_data.file_url + " File: " + p_data.file);
         });
         conn.on('error', (err) => {
             console.error("Error in peer data connection", err);
@@ -135,7 +137,7 @@ class Peer {
         this.socket.on('peer_id_list', (msg) => {
             console.log('peer_ids: ' + msg);
             let new_peers_list = msg;
-            
+
             for (let peer_id of this.connected_peer_ids) {
                 if (new_peers_list.includes(peer_id) == false) {
                     this.connected_peer_ids.splice(this.connected_peer_ids.indexOf(peer_id), 1);
@@ -146,6 +148,19 @@ class Peer {
             for (let peer_id of new_peers_list) {
                 this.CallPeerWithId(peer_id);
             }
+        });
+
+        this.socket.on('get_file', (msg) => {
+            let file_url = msg.file_url; // File to send
+            let peer_ids = msg.peer_ids; // Peer to send the file to
+
+            // this.GetFile(file_url).then(fileBufferArray => {
+            //     let data = {
+            //         file_url: file_url,
+            //         file: fileBufferArray
+            //     };
+            //     this.SendDataToPeer(data, peer_id);
+            // });
         });
     }
 
@@ -162,7 +177,8 @@ class Peer {
         }
 
         let file = await this.FetchFile(file_url);
-        return file;
+        let arrayBuffer = await file.arrayBuffer();
+        return arrayBuffer;
     }
 
     async FetchFile(file_url) {

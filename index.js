@@ -62,6 +62,8 @@ server.listen(port, () => {
 
 var all_players = new Map();
 
+var file_map = new Map();
+
 const {
     v4: uuidv4,
 } = require('uuid');
@@ -79,6 +81,29 @@ io.on('connection', (socket) => {
 
         all_players.set(player_id, peer_id);
         socket.emit('peer_id_list', Array.from(all_players.values()));
+    });
+
+    socket.on('add_file', (msg) => {
+        let file_url = msg;
+
+        let users = file_map.get(file_url);
+        if (users == null) {
+            users = [];
+        }
+        users.push(peer_id);
+
+        file_map.set(file_url, users);
+        console.log("Added file " + file_url + " for peer " + peer_id);
+    });
+    
+    socket.on('file_requested', (msg) => {
+        let file_url = msg;
+        // Look among peers if they have the files
+        let users = file_map.get(file_url);
+        // If so then that peer should send it to the person requesting it
+        if (users != null) {
+            socket.emit('get_file', { 'file_url': file_url, 'peer_ids': users });
+        }
     });
 
     socket.on('disconnect', () => {
