@@ -1,7 +1,9 @@
+const peer_id = Math.floor(Math.random() * 2 ** 18)
+  .toString(36)
+  .padStart(4, 0);
+
 const peer = new Peer(
-  `${Math.floor(Math.random() * 2 ** 18)
-    .toString(36)
-    .padStart(4, 0)}`,
+  `${peer_id}`,
   {
     host: location.hostname,
     debug: 1,
@@ -13,4 +15,4 @@ window.peer = peer;
 
 var socket = io();
 
-socket.emit('chat message', "Hello world");
+socket.emit('peer_id', peer_id);

@@ -86,9 +86,21 @@ console.log(`Listening on: ${port}`);
 const { Server } = require("socket.io");
 const io = new Server(server);
 
+const {
+    v4: uuidv4,
+} = require('uuid');
+var all_players = new Map();
+
 io.on('connection', (socket) => {
-    console.log('a user connected');
-    socket.on('chat message', (msg) => {
-        console.log('message: ' + msg);
+    let player_id = uuidv4();
+    socket.player_id = player_id;
+    console.log('a user connected: ' + player_id);
+
+    let peer_id = null;
+    socket.on('peer_id', (msg) => {
+        peer_id = msg;
+        console.log('peer_id: ' + peer_id);
+
+        all_players.set(player_id, {peer_id: peer_id, socket: socket});
     });
 });
