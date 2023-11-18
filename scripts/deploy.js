@@ -7,22 +7,18 @@
 const hre = require("hardhat");
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const unlockTime = currentTimestampInSeconds + 60;
+  const newContract = await hre.ethers.deployContract("Testtoken");
 
-  const lockedAmount = hre.ethers.parseEther("0.001");
+  await newContract.waitForDeployment();
+  console.log("deployed");
+  console.log(newContract);
 
-  const lock = await hre.ethers.deployContract("Lock", [unlockTime], {
-    value: lockedAmount,
-  });
-
-  await lock.waitForDeployment();
-
-  console.log(
-    `Lock with ${ethers.formatEther(
-      lockedAmount
-    )}ETH and unlock timestamp ${unlockTime} deployed to ${lock.target}`
-  );
+  console.log("contract address: " + newContract.target);
+  // console.log(
+  //   `Lock with ${ethers.formatEther(
+  //     lockedAmount
+  //   )}ETH and unlock timestamp ${unlockTime} deployed to ${lock.target}`
+  // );
 }
 
 // We recommend this pattern to be able to use async/await everywhere
@@ -31,3 +27,27 @@ main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
+
+
+// var ethers = require('ethers');  
+// async function main() {
+
+//   const [deployer] = await ethers.getSigners();
+
+//   console.log("Deploying contracts with the account:", deployer.address);
+
+//   const HelloWorld = await ethers.getContractFactory("HelloWorld");
+//   const contract = await HelloWorld.deploy();
+
+//   console.log("Contract deployed at:", contract.address);
+
+//   const saySomething = await contract.speak();
+  
+//   console.log("saySomething value:", saySomething);
+// }
+
+// main()
+// .then(() => process.exit(0))
+// .catch(error => {
+//   console.error(error);
+//   process.exit(1);

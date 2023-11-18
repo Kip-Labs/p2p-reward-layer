@@ -24,11 +24,8 @@ let wallet = new ethers.Wallet(privatekey, provider);
 // print the wallet address
 console.log("Using wallet address " + wallet.address);
 
-// specifying the deployed contract address on Ropsten
-let contractaddress = "0x50802059B3A299b36bc2c71aBEDBA450032f49AB";
-
-const { TestContract } = require('./scripts/contract_tester.js');
-TestContract(wallet);
+// const { TestContract } = require('./scripts/contract_tester.js');
+// TestContract(wallet);
 
 
 const express = require("express");

@@ -2,7 +2,7 @@ var ethers = require('ethers');
 
 
 // specifying the deployed contract address on Ropsten
-let contractaddress = "0x50802059B3A299b36bc2c71aBEDBA450032f49AB";
+let contractaddress = "0xADf699D3584117F488B36EE69F1fbdb906AE7F4F";
 
 async function TestContract(wallet)
 {
@@ -16,20 +16,18 @@ async function TestContract(wallet)
 
     // initiating a new Contract
     let contract = new ethers.Contract(contractaddress, abi, wallet);
-    
+
+    let balanceOld = await contract.getBalance(wallet.address);
+    console.log("Old balance: " + balanceOld.toString());
+
     // calling the "retrieve" function to read the stored value
-    let read = await contract.retrieve();
-    console.log("Value stored in contract is " + read.toString());
-
-    // calling the "store" function to update the value to 420
-    let write = await contract.store(1337);
-
-    // wait for 2 blocks of confirmation 
-    write.wait(2).then(async () => {  
+    let mint = await contract.mint(1234);
+    mint.wait(2).then(async () => {  
         // read the contract again, similar to above
-        let read = await contract.retrieve();
-        console.log("Updated value stored in contract is " + read.toString());
+        let balance = await contract.getBalance(wallet.address);
+        console.log("Updated balance stored in contract is " + balance.toString());
     });    
+  
 }
 
 

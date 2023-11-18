@@ -1,10 +1,10 @@
 {
   "_format": "hh-sol-cache-2",
   "files": {
-    "C:\\Projects\\server\\websockets\\contracts\\Lock.sol": {
-      "lastModificationDate": 1700304013665,
-      "contentHash": "ae66265769cc28ebdaa34881df95bc5e",
-      "sourceName": "contracts/Lock.sol",
+    "C:\\Projects\\server\\polygon_js\\github\\p2p-reward-layer\\contracts\\Testtoken.sol": {
+      "lastModificationDate": 1700349686176,
+      "contentHash": "c6c54d423c48cb87b0f7fa7069c42363",
+      "sourceName": "contracts/Testtoken.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
@@ -30,10 +30,10 @@
       },
       "imports": [],
       "versionPragmas": [
-        "^0.8.9"
+        "^0.8.19"
       ],
       "artifacts": [
-        "Lock"
+        "Testtoken"
       ]
     }
   }
