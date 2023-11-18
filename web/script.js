@@ -1,12 +1,12 @@
 
-class Peer {
+class CachePeer {
     constructor(mem_capacity) {
         this.totalMemory = mem_capacity;
         this.usedMemory = 0;
         this.files = [];
 
         this.connected_peer_ids = [];
-        this.peer_conn_map = new Map();
+        this.peer_to_conn_map = new Map();
         this.InitNewPeer();
 
         this.InitWebsocket();
@@ -20,7 +20,7 @@ class Peer {
             .padStart(4, 0);
 
         this.connected_peer_ids = [];
-        this.peer_conn_map = new Map();
+        this.peer_to_conn_map = new Map();
 
         this.peer = new Peer(
             `${peer_id}`,
@@ -39,10 +39,11 @@ class Peer {
             console.log("Incoming connection from peer", conn.peer);
             conn.on('data', (p_data) => {
                 console.log("Received data from peer", conn.peer, p_data);
+                // console.log("File url: " + p_data.file_url + " File: " + p_data.file);
             });
             conn.on('open', () => {
                 console.log("Connection to peer", conn.peer, "opened.");
-                this.peer_conn_map.set(conn.peer, conn);
+                self.peer_to_conn_map.set(conn.peer, conn);
             });
             conn.on('error', (err) => {
                 console.error("Error in peer data connection", err);
@@ -85,9 +86,16 @@ class Peer {
 
     }
 
-    CallPeerWithId (peer_id) {
+    CallPeerWithId(peer_id) {
+        let self = this;
+
         if (peer_id == this.peer.id) {
             console.warn("Cannot call self.");
+            return;
+        }
+
+        if (this.connected_peer_ids.includes(peer_id)) {
+            console.warn("Already connected to peer", peer_id);
             return;
         }
 
@@ -95,12 +103,14 @@ class Peer {
 
         conn.on('open', function () {
             console.log("Connection to peer", peer_id, "opened.");
-            this.peer_conn_map.set(peer_id, conn);
+            self.peer_to_conn_map.set(peer_id, conn);
+            self.connected_peer_ids.push(peer_id);
 
-            this.SendDataToAllPeers({ "peer_id": peer.id });
+            // self.SendDataToAllPeers({ "peer_id": self.peer.id });
         });
         conn.on('data', function (p_data) {
             console.log("Received data from peer", peer_id, p_data);
+            // console.log("File url: " + p_data.file_url + " File: " + p_data.file);
         });
         conn.on('error', (err) => {
             console.error("Error in peer data connection", err);
@@ -109,30 +119,61 @@ class Peer {
     }
 
     SendDataToAllPeers (data) {
-        for (let [peer_id, conn] of this.peer_conn_map) {
+        for (let [peer_id, conn] of this.peer_to_conn_map) {
             conn.send(data);
         }
     }
 
     SendDataToPeer(data, peer_id) {
-        let conn = this.peer_conn_map.get(peer_id);
+        let conn = this.peer_to_conn_map.get(peer_id);
         if (conn) {
             conn.send(data);
         }
     }
 
     InitWebsocket() {
+        let self = this;
+
         this.socket = io();
 
         this.socket.emit('peer_id', this.peer.id);
 
         this.socket.on('peer_id_list', (msg) => {
             console.log('peer_ids: ' + msg);
-            this.connected_peer_ids = msg;
+            let new_peers_list = msg;
+
             for (let peer_id of this.connected_peer_ids) {
+                if (new_peers_list.includes(peer_id) == false) {
+                    self.connected_peer_ids.splice(self.connected_peer_ids.indexOf(peer_id), 1);
+                    self.peer_to_conn_map.delete(peer_id);
+                }
+            }
+
+            for (let peer_id of new_peers_list) {
                 this.CallPeerWithId(peer_id);
             }
         });
+
+        this.socket.on('send_file', (msg) => {
+            let file_url = msg.file_url; // File to send
+            let peer_id = msg.peer_id; // Peer to send the file to
+            console.log("Sending file... " + file_url + " to peer " + peer_id);
+
+            this.GetFile(file_url).then(fileBufferArray => {
+                let data = {
+                    file_url: file_url,
+                    file: fileBufferArray
+                };
+                this.SendDataToPeer(data, peer_id);
+                this.socket.emit('add_file', file_url);
+            });
+        });
+
+    }
+
+    RequestFile(file_url) {
+        console.log("Requesting file... " + file_url);
+        this.socket.emit('request_file', file_url);
     }
 
     HasFile(file_url) {
@@ -147,8 +188,8 @@ class Peer {
             }
         }
 
-        let file = await this.FetchFile(file_url);
-        return file;
+        let arrayBuffer = await this.FetchFile(file_url);
+        return arrayBuffer;
     }
 
     async FetchFile(file_url) {
@@ -160,113 +201,28 @@ class Peer {
         }
         let res = await fetch(file_url, params);
 
-        let b = null;
+        let _blob = null;
+        let arrayBuffer = null;
         try {
-            b = await res.blob();
-            console.log(b);
+            _blob = await res.blob();
+            console.log(_blob);
+            arrayBuffer = await _blob.arrayBuffer();
 
             this.files.push({
                 url: file_url,
-                data: b
+                data: arrayBuffer
             });
-            this.usedMemory += b.size;
+            this.usedMemory += _blob.size;
         }
         catch (e) {
             console.log(e);
         }
-        return b;
+        return arrayBuffer;
     }
 
 
 };
 
-class PeerNetwork {
-    constructor() {
-        this.index = 0;
-        this.peers = [];
-        this.NewPeer(10000000);
-        this.NewPeer(10000000);
-        this.NewPeer(10000000);
-        this.NewPeer(10000000);
-    }
+var cachePeer = new CachePeer(1000000000);
 
-    NewPeer(mem_capacity) {
-        this.peers.push(new Peer(mem_capacity));
-    }
-
-    async GetFile(file_url) {
-        return new Promise((resolve, reject) => {
-            /// look for file if available, start at the index for the last request
-            for (let i = 0; i < this.peers.length; i++) {
-                this.index = (this.index + 1) % this.peers.length;
-                let t_index = this.index;
-                if (this.peers[t_index].HasFile(file_url)) {
-                    this.peers[t_index].GetFile(file_url).then(file => {
-                        resolve(file);
-                    });
-                    return;
-                }
-            }
-
-            let gotFile = false;
-            if (this.peers.length <= 3) {
-                /// cache the file on all peers
-                for (let i = 0; i < this.peers.length; i++) {
-                    this.peers[i].GetFile(file_url).then(file => {
-                        if (gotFile == false) {
-                            gotFile = true;
-                            resolve(file);
-                        }
-                    });
-                }
-            }
-            else {
-                /// get the three peers with the least amount of used memory to cache the file
-                let indices = [];
-                indices[0] = -1;
-                indices[1] = -1;
-                indices[2] = -1;
-                let mins = [];
-                mins[0] = 9999999999;
-                mins[1] = 9999999999;
-                mins[2] = 9999999999;
-                for (let i = 0; i < this.peers.length; i++) {
-                    let mem = this.peers[i].usedMemory;
-                    if (mem < mins[0]) {
-                        mins[2] = mins[1];
-                        indices[2] = indices[1];
-
-                        mins[1] = mins[0];
-                        indices[1] = indices[0];
-
-                        mins[0] = mem;
-                        indices[0] = i;
-                    }
-                    else if (mem < mins[1]) {
-                        mins[2] = mins[1];
-                        indices[2] = indices[1];
-
-                        mins[1] = mem;
-                        indices[1] = i;
-                    }
-                    else if (mem < mins[2]) {
-                        mins[2] = mem;
-                        indices[2] = i;
-                    }
-                }
-
-                for (let i = 0; i < 3; i++) {
-                    if (indices[i] < 0) break;
-                    this.peers[indices[i]].GetFile(file_url).then(file => {
-                        if (gotFile == false) {
-                            gotFile = true;
-                            resolve(file);
-                        }
-                    });
-                }
-            }
-        })
-    }
-}
-
-var p2p = new PeerNetwork();
+// cachePeer.RequestFile('https://upload.wikimedia.org/wikipedia/commons/0/09/Apollo_14_Shepard.jpg')
