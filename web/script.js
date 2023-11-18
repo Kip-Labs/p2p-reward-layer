@@ -188,8 +188,7 @@ class CachePeer {
             }
         }
 
-        let file = await this.FetchFile(file_url);
-        let arrayBuffer = await file.arrayBuffer();
+        let arrayBuffer = await this.FetchFile(file_url);
         return arrayBuffer;
     }
 
@@ -202,21 +201,23 @@ class CachePeer {
         }
         let res = await fetch(file_url, params);
 
-        let b = null;
+        let _blob = null;
+        let arrayBuffer = null;
         try {
-            b = await res.blob();
-            console.log(b);
+            _blob = await res.blob();
+            console.log(_blob);
+            arrayBuffer = await _blob.arrayBuffer();
 
             this.files.push({
                 url: file_url,
-                data: b
+                data: arrayBuffer
             });
-            this.usedMemory += b.size;
+            this.usedMemory += _blob.size;
         }
         catch (e) {
             console.log(e);
         }
-        return b;
+        return arrayBuffer;
     }
 
 
