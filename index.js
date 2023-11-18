@@ -87,6 +87,12 @@ io.on('connection', (socket) => {
         socket.emit('peer_id_list', Array.from(player_to_peer_map.values()));
     });
 
+    socket.on('wallet_address', (msg) => {
+        wallet_address = msg;
+
+        // Add to mapping
+    });
+
     socket.on('add_file', (msg) => {
         let file_url = msg;
         console.log('on add_file: ' + msg);
@@ -137,6 +143,8 @@ io.on('connection', (socket) => {
                 let socket_id = peers_to_sockets_map.get(_peer_id);
                 // console.log("Sending to socket ID " + socket_id + " for peer " + peer_id + " for file " + file_url);
                 io.to(socket_id).emit('send_file', { 'file_url': file_url, 'peer_id': peer_id });
+                
+                // Request tokens to be sent to wallet of this peer based on the file
             }
         }
         // else {
