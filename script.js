@@ -10,3 +10,7 @@ const peer = new Peer(
 );
 
 window.peer = peer;
+
+var socket = io();
+
+socket.emit('chat message', "Hello world");
