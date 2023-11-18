@@ -63,6 +63,7 @@ server.listen(port, () => {
 var all_players = new Map();
 
 var file_map = new Map();
+var socket_map = new Map();
 
 const {
     v4: uuidv4,
@@ -80,6 +81,7 @@ io.on('connection', (socket) => {
         console.log('on peer_id: ' + peer_id);
 
         all_players.set(player_id, peer_id);
+        socket_map.set(peer_id, socket.id);
         socket.emit('peer_id_list', Array.from(all_players.values()));
     });
 
@@ -90,20 +92,91 @@ io.on('connection', (socket) => {
         if (users == null) {
             users = [];
         }
+
+        if (users.includes(peer_id)) {
+            return;
+        }
+
         users.push(peer_id);
 
         file_map.set(file_url, users);
         console.log("Added file " + file_url + " for peer " + peer_id);
     });
     
-    socket.on('file_requested', (msg) => {
+    socket.on('request_file', (msg) => {
         let file_url = msg;
         // Look among peers if they have the files
         let users = file_map.get(file_url);
         // If so then that peer should send it to the person requesting it
-        if (users != null) {
-            socket.emit('get_file', { 'file_url': file_url, 'peer_ids': users });
+        if (users == null) {
+            return;
         }
+
+        /// look for file if available, start at the index for the last request
+        for (let i = 0; i < users.length; i++) {
+            this.index = (this.index + 1) % users.length;
+            let t_index = this.index;
+
+            let socket_id = socket_map.get(users[t_index]);
+            io.to(socket_id).emit('send_file', { 'file_url': file_url, 'peer_id': peer_id });
+            return;
+        }
+
+        let all_peers = all_players.values();
+        // if (all_peers.length <= 3) {
+        if (true) {
+            /// Cache the file on all peers
+            for (let i = 0; i < all_peers.length; i++) {
+                let _peer_id = all_peers[i]
+                let socket_id = socket_map.get(_peer_id);
+                io.to(socket_id).emit('send_file', { 'file_url': file_url, 'peer_id': peer_id });
+            }
+        }
+        // else {
+        //     /// get the three peers with the least amount of used memory to cache the file
+        //     let indices = [];
+        //     indices[0] = -1;
+        //     indices[1] = -1;
+        //     indices[2] = -1;
+        //     let mins = [];
+        //     mins[0] = 9999999999;
+        //     mins[1] = 9999999999;
+        //     mins[2] = 9999999999;
+        //     for (let i = 0; i < this.peers.length; i++) {
+        //         let mem = this.peers[i].usedMemory;
+        //         if (mem < mins[0]) {
+        //             mins[2] = mins[1];
+        //             indices[2] = indices[1];
+
+        //             mins[1] = mins[0];
+        //             indices[1] = indices[0];
+
+        //             mins[0] = mem;
+        //             indices[0] = i;
+        //         }
+        //         else if (mem < mins[1]) {
+        //             mins[2] = mins[1];
+        //             indices[2] = indices[1];
+
+        //             mins[1] = mem;
+        //             indices[1] = i;
+        //         }
+        //         else if (mem < mins[2]) {
+        //             mins[2] = mem;
+        //             indices[2] = i;
+        //         }
+        //     }
+
+        //     for (let i = 0; i < 3; i++) {
+        //         if (indices[i] < 0) break;
+        //         this.peers[indices[i]].GetFile(file_url).then(file => {
+        //             if (gotFile == false) {
+        //                 gotFile = true;
+        //                 resolve(file);
+        //             }
+        //         });
+        //     }
+        // }
     });
 
     socket.on('disconnect', () => {
@@ -112,3 +185,26 @@ io.on('connection', (socket) => {
         socket.emit('peer_id_list', Array.from(all_players.values()));
     });
 });
+
+
+class PeerNetwork {
+    constructor() {
+        this.index = 0;
+        this.peers = [];
+        this.peerMap = new Map();
+    }
+
+    NewPeer(peer_id, mem_capacity) {
+        let new_peer = new Peer(mem_capacity);
+        this.peers.push(new_peer);
+        this.peerMap.set(peer_id, new_peer);
+    }
+
+    async GetFile(file_url) {
+        return new Promise((resolve, reject) => {
+            
+        })
+    }
+}
+
+var p2p = new PeerNetwork();

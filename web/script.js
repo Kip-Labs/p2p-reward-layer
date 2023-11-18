@@ -150,18 +150,23 @@ class Peer {
             }
         });
 
-        this.socket.on('get_file', (msg) => {
+        this.socket.on('send_file', (msg) => {
             let file_url = msg.file_url; // File to send
-            let peer_ids = msg.peer_ids; // Peer to send the file to
+            let peer_id = msg.peer_ids; // Peer to send the file to
 
-            // this.GetFile(file_url).then(fileBufferArray => {
-            //     let data = {
-            //         file_url: file_url,
-            //         file: fileBufferArray
-            //     };
-            //     this.SendDataToPeer(data, peer_id);
-            // });
+            this.GetFile(file_url).then(fileBufferArray => {
+                let data = {
+                    file_url: file_url,
+                    file: fileBufferArray
+                };
+                this.SendDataToPeer(data, peer_id);
+                this.socket.emit('add_file', file_url);
+            });
         });
+    }
+
+    RequestFile(file_url) {
+        this.socket.emit('request_file', file_url);
     }
 
     HasFile(file_url) {
@@ -210,93 +215,6 @@ class Peer {
 
 };
 
-class PeerNetwork {
-    constructor() {
-        this.index = 0;
-        this.peers = [];
-        this.NewPeer(10000000);
-        this.NewPeer(10000000);
-        this.NewPeer(10000000);
-        this.NewPeer(10000000);
-    }
+var peer = new Peer(1000000000);
 
-    NewPeer(mem_capacity) {
-        this.peers.push(new Peer(mem_capacity));
-    }
-
-    async GetFile(file_url) {
-        return new Promise((resolve, reject) => {
-            /// look for file if available, start at the index for the last request
-            for (let i = 0; i < this.peers.length; i++) {
-                this.index = (this.index + 1) % this.peers.length;
-                let t_index = this.index;
-                if (this.peers[t_index].HasFile(file_url)) {
-                    this.peers[t_index].GetFile(file_url).then(file => {
-                        resolve(file);
-                    });
-                    return;
-                }
-            }
-
-            let gotFile = false;
-            if (this.peers.length <= 3) {
-                /// cache the file on all peers
-                for (let i = 0; i < this.peers.length; i++) {
-                    this.peers[i].GetFile(file_url).then(file => {
-                        if (gotFile == false) {
-                            gotFile = true;
-                            resolve(file);
-                        }
-                    });
-                }
-            }
-            else {
-                /// get the three peers with the least amount of used memory to cache the file
-                let indices = [];
-                indices[0] = -1;
-                indices[1] = -1;
-                indices[2] = -1;
-                let mins = [];
-                mins[0] = 9999999999;
-                mins[1] = 9999999999;
-                mins[2] = 9999999999;
-                for (let i = 0; i < this.peers.length; i++) {
-                    let mem = this.peers[i].usedMemory;
-                    if (mem < mins[0]) {
-                        mins[2] = mins[1];
-                        indices[2] = indices[1];
-
-                        mins[1] = mins[0];
-                        indices[1] = indices[0];
-
-                        mins[0] = mem;
-                        indices[0] = i;
-                    }
-                    else if (mem < mins[1]) {
-                        mins[2] = mins[1];
-                        indices[2] = indices[1];
-
-                        mins[1] = mem;
-                        indices[1] = i;
-                    }
-                    else if (mem < mins[2]) {
-                        mins[2] = mem;
-                        indices[2] = i;
-                    }
-                }
-
-                for (let i = 0; i < 3; i++) {
-                    if (indices[i] < 0) break;
-                    this.peers[indices[i]].GetFile(file_url).then(file => {
-                        if (gotFile == false) {
-                            gotFile = true;
-                            resolve(file);
-                        }
-                    });
-                }
-            }
-        })
-    }
-}
-
-var p2p = new PeerNetwork();
+peer.RequestFile('some_url')
