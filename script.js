@@ -85,7 +85,7 @@ var call_peer_with_id = function (peer_id) {
     return;
   }
 
-  let conn = peer.connect(peer_id, { serialization: "none" });
+  let conn = peer.connect(peer_id);
 
   conn.on('open', function () {
     console.log("Connection to peer", peer_id, "opened.");
