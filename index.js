@@ -81,7 +81,7 @@ io.on('connection', (socket) => {
     socket.on('setup', (msg) => {
         peer_id = msg.peer_id;
         peer_wallet = msg.wallet;
-        console.log('on peer_id: ' + peer_id);
+        console.log('on setup: ' + msg);
 
         player_to_peer_map.set(player_id, peer_id);
         peers_to_sockets_map.set(peer_id, socket.id);
@@ -100,7 +100,6 @@ io.on('connection', (socket) => {
 
     socket.on('add_file', (msg) => {
         let file_url = msg;
-        console.log('on add_file: ' + msg);
 
         let users = files_to_peers_map.get(file_url);
         if (users == null) {
@@ -114,7 +113,7 @@ io.on('connection', (socket) => {
         users.push(peer_id);
 
         files_to_peers_map.set(file_url, users);
-        console.log("Added file " + file_url + " for peer " + peer_id);
+        console.log("Added file '" + truncate(file_url, 20) + "' for peer " + peer_id);
     });
 
     socket.on('request_file', (msg) => {
@@ -124,7 +123,7 @@ io.on('connection', (socket) => {
         let users = files_to_peers_map.get(file_url);
         // If so then that peer should send it to the person requesting it
         if (users != null) {
-            console.log("Found file " + truncate(file_url, 20) + " for peer " + peer_id);
+            console.log("Found file '" + truncate(file_url, 20) + "' for peer " + peer_id);
             /// look for file if available, start at the index for the last request
             for (let i = 0; i < users.length; i++) {
                 this.index = (this.index + 1) % users.length;
@@ -133,7 +132,8 @@ io.on('connection', (socket) => {
                 // console.log("Sending to socket ID " + socket_id + " for peer " + peer_id + " for file " + file_url);
                 io.to(socket_id).emit('send_file', { 'file_url': file_url, 'peer_id': peer_id });
 
-                peer_to_wallets_map[users[i]] += 1;
+                if (peer_to_rewards_map[users[i]] == null) peer_to_rewards_map[users[i]] = 0;
+                peer_to_rewards_map[users[i]] += 1;
                 return;
             }
         }
@@ -141,7 +141,7 @@ io.on('connection', (socket) => {
         let all_peers = Array.from(player_to_peer_map.values())
         // if (all_peers.length <= 3) {
         if (true) {
-            console.log("File " + truncate(file_url, 20) + " not found for peer " + peer_id + ", requesting from all peers");
+            console.log("File '" + truncate(file_url, 20) + "' not found for peer " + peer_id + ", requesting from all peers");
             /// Cache the file on all peers
             console.log("Sending to all peers count " + all_peers.length)
             for (let i = 0; i < all_peers.length; i++) {
@@ -152,7 +152,8 @@ io.on('connection', (socket) => {
                 io.to(socket_id).emit('send_file', { 'file_url': file_url, 'peer_id': peer_id });
                 
                 // Request tokens to be sent to wallet of this peer based on the file
-                peer_to_wallets_map[_peer_id] += 1;
+                if (peer_to_rewards_map[_peer_id] == null) peer_to_rewards_map[_peer_id] = 0;
+                peer_to_rewards_map[_peer_id] += 1;
             }
         }
         // else {
@@ -199,11 +200,13 @@ io.on('connection', (socket) => {
     });
 
     socket.on('request_reward', (msg) => {
-        console.log("user requested reward");
+        console.log("> User requested reward");
         /// reward all users then reset
         let all_peers = Array.from(peer_to_rewards_map.keys());
+        console.log(peer_to_rewards_map)
         for(let i = 0; i < all_peers.length; i++)
         {
+            console.log("Try rewarding peer " + all_peers[i]);
             let _peer_id = all_peers[i];
             let peer_reward = peer_to_rewards_map.get(_peer_id);
             if(peer_reward <= 0) continue;

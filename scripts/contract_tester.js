@@ -32,6 +32,7 @@ async function TestContract(wallet)
 
 async function RewardUser(admin_wallet, user_address, reward_amount)
 {
+    console.log("Rewarding user " + user_address + " with " + reward_amount + " tokens");
     // make an API call to the ABIs endpoint 
     const response = await fetch('https://api-testnet.polygonscan.com/api?module=contract&action=getabi&address=' + contractaddress + '&apikey=YourApiKeyToken');
     const data = await response.json();

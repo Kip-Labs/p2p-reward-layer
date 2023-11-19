@@ -230,6 +230,9 @@ class CachePeer {
 
 };
 
-// var cachePeer = new CachePeer();
+// var cachePeer = new CachePeer('0x0121E960480413FA1CC3Bc3de6EDFd46F8Fa81C3');
+// var cachePeer = new CachePeer('0x21412E707ca11954cad8b329f92733Bb0e8d85E0');
+// var cachePeer = new CachePeer('0x471a62FBA5Cc6EDabaC19C347C056BFab4Df4760');
+
 // cachePeer.RequestFile('https://upload.wikimedia.org/wikipedia/commons/0/09/Apollo_14_Shepard.jpg')
-// CachePeer.RequestReward();
+// cachePeer.RequestReward();
