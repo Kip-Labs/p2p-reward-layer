@@ -27,6 +27,8 @@ console.log("Using wallet address " + wallet.address);
 // const { TestContract } = require('./scripts/contract_tester.js');
 // TestContract(wallet);
 
+const { RewardUser } = require('./scripts/contract_tester.js');
+
 
 const express = require("express");
 const http = require("http");
@@ -60,6 +62,8 @@ server.listen(port, () => {
 var player_to_peer_map = new Map();
 var files_to_peers_map = new Map();
 var peers_to_sockets_map = new Map();
+var peer_to_wallets_map = new Map();
+var peer_to_rewards_map = new Map();
 
 const {
     v4: uuidv4,
@@ -72,13 +76,17 @@ io.on('connection', (socket) => {
     socket.emit('peer_id_list', Array.from(player_to_peer_map.values()));
 
     let peer_id = null;
+    let peer_wallet = null;
 
-    socket.on('peer_id', (msg) => {
-        peer_id = msg;
+    socket.on('setup', (msg) => {
+        peer_id = msg.peer_id;
+        peer_wallet = msg.wallet;
         console.log('on peer_id: ' + peer_id);
 
         player_to_peer_map.set(player_id, peer_id);
         peers_to_sockets_map.set(peer_id, socket.id);
+        peer_to_wallets_map.set(peer_id, peer_wallet);
+        peer_to_rewards_map.set(peer_id, 0);
         // console.log('Socket Id: ' + socket.id + ' Peer Id: ' + peer_id);
 
         socket.emit('peer_id_list', Array.from(player_to_peer_map.values()));
@@ -124,6 +132,8 @@ io.on('connection', (socket) => {
                 let socket_id = peers_to_sockets_map.get(users[i]);
                 // console.log("Sending to socket ID " + socket_id + " for peer " + peer_id + " for file " + file_url);
                 io.to(socket_id).emit('send_file', { 'file_url': file_url, 'peer_id': peer_id });
+
+                peer_to_wallets_map[users[i]] += 1;
                 return;
             }
         }
@@ -142,6 +152,7 @@ io.on('connection', (socket) => {
                 io.to(socket_id).emit('send_file', { 'file_url': file_url, 'peer_id': peer_id });
                 
                 // Request tokens to be sent to wallet of this peer based on the file
+                peer_to_wallets_map[_peer_id] += 1;
             }
         }
         // else {
@@ -159,17 +170,14 @@ io.on('connection', (socket) => {
         //         if (mem < mins[0]) {
         //             mins[2] = mins[1];
         //             indices[2] = indices[1];
-
         //             mins[1] = mins[0];
         //             indices[1] = indices[0];
-
         //             mins[0] = mem;
         //             indices[0] = i;
         //         }
         //         else if (mem < mins[1]) {
         //             mins[2] = mins[1];
         //             indices[2] = indices[1];
-
         //             mins[1] = mem;
         //             indices[1] = i;
         //         }
@@ -178,7 +186,6 @@ io.on('connection', (socket) => {
         //             indices[2] = i;
         //         }
         //     }
-
         //     for (let i = 0; i < 3; i++) {
         //         if (indices[i] < 0) break;
         //         this.peers[indices[i]].GetFile(file_url).then(file => {
@@ -189,6 +196,21 @@ io.on('connection', (socket) => {
         //         });
         //     }
         // }
+    });
+
+    socket.on('request_reward', (msg) => {
+        console.log("user requested reward");
+        /// reward all users then reset
+        let all_peers = Array.from(peer_to_rewards_map.keys());
+        for(let i = 0; i < all_peers.length; i++)
+        {
+            let _peer_id = all_peers[i];
+            let peer_reward = peer_to_rewards_map.get(_peer_id);
+            if(peer_reward <= 0) continue;
+            let peer_address = peer_to_wallets_map.get(_peer_id);
+            RewardUser(wallet, peer_address, peer_reward);
+            peer_to_rewards_map[_peer_id] = 0;
+        }
     });
 
     socket.on('disconnect', () => {

@@ -1,9 +1,10 @@
 
 class CachePeer {
-    constructor(mem_capacity) {
+    constructor(wallet_address, mem_capacity = 1000000000) {
         this.totalMemory = mem_capacity;
         this.usedMemory = 0;
         this.files = [];
+        this.wallet = wallet_address;
 
         this.connected_peer_ids = [];
         this.peer_to_conn_map = new Map();
@@ -136,7 +137,7 @@ class CachePeer {
 
         this.socket = io();
 
-        this.socket.emit('peer_id', this.peer.id);
+        this.socket.emit('setup', {peer_id: this.peer.id, wallet: this.wallet});
 
         this.socket.on('peer_id_list', (msg) => {
             console.log('peer_ids: ' + msg);
@@ -174,6 +175,12 @@ class CachePeer {
     RequestFile(file_url) {
         console.log("Requesting file... " + file_url);
         this.socket.emit('request_file', file_url);
+    }
+
+    RequestReward()
+    {
+        console.log("Requesting reward...");
+        this.socket.emit('request_reward', null);
     }
 
     HasFile(file_url) {
@@ -223,6 +230,6 @@ class CachePeer {
 
 };
 
-var cachePeer = new CachePeer(1000000000);
-
+// var cachePeer = new CachePeer();
 // cachePeer.RequestFile('https://upload.wikimedia.org/wikipedia/commons/0/09/Apollo_14_Shepard.jpg')
+// CachePeer.RequestReward();
