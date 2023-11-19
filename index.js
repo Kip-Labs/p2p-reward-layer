@@ -81,7 +81,7 @@ io.on('connection', (socket) => {
     socket.on('setup', (msg) => {
         peer_id = msg.peer_id;
         peer_wallet = msg.wallet;
-        console.log('on setup: ' + msg);
+        console.log('on setup: ' + JSON.stringify(msg));
 
         player_to_peer_map.set(player_id, peer_id);
         peers_to_sockets_map.set(peer_id, socket.id);
