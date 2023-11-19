@@ -132,8 +132,7 @@ io.on('connection', (socket) => {
                 // console.log("Sending to socket ID " + socket_id + " for peer " + peer_id + " for file " + file_url);
                 io.to(socket_id).emit('send_file', { 'file_url': file_url, 'peer_id': peer_id });
 
-                if (peer_to_rewards_map[users[i]] == null) peer_to_rewards_map[users[i]] = 0;
-                peer_to_rewards_map[users[i]] += 1;
+                peer_to_rewards_map.set(users[i], peer_to_rewards_map.get(users[i]) + 1);
                 return;
             }
         }
@@ -152,8 +151,7 @@ io.on('connection', (socket) => {
                 io.to(socket_id).emit('send_file', { 'file_url': file_url, 'peer_id': peer_id });
                 
                 // Request tokens to be sent to wallet of this peer based on the file
-                if (peer_to_rewards_map[_peer_id] == null) peer_to_rewards_map[_peer_id] = 0;
-                peer_to_rewards_map[_peer_id] += 1;
+                peer_to_rewards_map.set(_peer_id, peer_to_rewards_map.get(_peer_id) + 1);
             }
         }
         // else {
@@ -204,12 +202,16 @@ io.on('connection', (socket) => {
         /// reward all users then reset
         let all_peers = Array.from(peer_to_rewards_map.keys());
         console.log(peer_to_rewards_map)
+        // console.log(all_peers)
         for(let i = 0; i < all_peers.length; i++)
         {
-            console.log("Try rewarding peer " + all_peers[i]);
+            // console.log("Try rewarding peer " + all_peers[i]);
             let _peer_id = all_peers[i];
             let peer_reward = peer_to_rewards_map.get(_peer_id);
-            if(peer_reward <= 0) continue;
+            if (peer_reward <= 0) {
+                // console.log("Peer " + _peer_id + " has no reward");
+                continue;
+            }
             let peer_address = peer_to_wallets_map.get(_peer_id);
             RewardUser(wallet, peer_address, peer_reward);
             peer_to_rewards_map[_peer_id] = 0;
